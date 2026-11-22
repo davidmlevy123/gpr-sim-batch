@@ -19,9 +19,32 @@ for s in range(3):
     for k in ("rock", "water_bottle", "empty_bottle", "can", "root"):
         for d in ((0.02, 0.10), (0.10, 0.20), (0.20, 0.30)):
             CELLS += [(s, k, d)] * 2
-SETS = {"train": (500000, 3), "test": (600000, 2), "test2": (700000, 2), "test3": (800000, 6)}
+METAL_CELLS = []
+for s in range(3):
+    for d in ((0.02, 0.10), (0.10, 0.20), (0.20, 0.30)):
+        METAL_CELLS += [(s, "tm62m", d)] * 3
+    for d in ((0.02, 0.07), (0.07, 0.15)):
+        METAL_CELLS += [(s, "ozm", d)] * 3
+SETS = {"train": (500000, 3), "test": (600000, 2), "test2": (700000, 2), "test3": (800000, 6),
+        "metal_train": (900000, 4), "test4": (1000000, 4)}
+LAYOUT = {"metal_train": [METAL_CELLS], "test4": [CELLS, METAL_CELLS]}
+
+
+def cell(set_name, i):
+    if set_name not in LAYOUT:
+        return CELLS[i % len(CELLS)]
+    mult = SETS[set_name][1]
+    for cells in LAYOUT[set_name]:
+        if i < len(cells) * mult:
+            return cells[i % len(cells)]
+        i -= len(cells) * mult
+    raise IndexError
+
+
+def set_size(set_name):
+    return sum(len(c) for c in LAYOUT.get(set_name, [CELLS])) * SETS[set_name][1]
 ZF = np.arange(0.01, 0.40, 0.001)
-MINES = {"vs50", "pmn2", "tm62p3"}
+MINES = {"vs50", "pmn2", "tm62p3", "tm62m", "ozm"}
 
 
 def make_object(kind, rng, depth):
@@ -33,6 +56,12 @@ def make_object(kind, rng, depth):
         return scene.pmn2(x, y, depth)
     if kind == "tm62p3":
         return scene.tm62p3(x, y, depth)
+    if kind == "tm62m":
+        return scene.DiscMine("TM-62M", x, y, depth, radius=0.16, height=0.128, eps_body=1e4,
+                              f0=200.0, q=5.0, gain=4.0)
+    if kind == "ozm":
+        return scene.DiscMine("OZM", x, y, depth, radius=0.054, height=0.17, eps_body=1e4,
+                              f0=None, compliance=0.9)
     if kind == "rock":
         a = rng.uniform(0.03, 0.06)
         return scene.Ellipsoid("rock", x, y, depth, a, a * rng.uniform(0.7, 1.0), a * rng.uniform(0.4, 0.7),
@@ -58,7 +87,7 @@ def dwell(soil, obj, xy, seed, n):
 def one(args):
     i, set_name = args
     base, _ = SETS[set_name]
-    s, kind, (d0, d1) = CELLS[i % len(CELLS)]
+    s, kind, (d0, d1) = cell(set_name, i)
     sname, soil0 = SOILS[s]
     soil = dataclasses.replace(soil0, alpha_exp=1.0)
     rng = np.random.default_rng(base + i)
@@ -89,7 +118,9 @@ def one(args):
     return dict(i=i, set=set_name, soil=sname, kind=kind, cls="mine" if kind in MINES else ("rock" if kind == "rock" else "other"),
                 depth=depth, yaw=float(getattr(obj, "yaw", 0.0)), hi_gate={"new": f},
                 dwell10=dwell(soil, obj, shp["center"], base + 7000 + i, 10),
-                dwell40=dwell(soil, obj, shp["center"], base + 8000 + i, 40))
+                dwell40=dwell(soil, obj, shp["center"], base + 8000 + i, 40),
+                dwell80=dwell(soil, obj, shp["center"], base + 9000 + i, 80),
+                dwell160=dwell(soil, obj, shp["center"], base + 9500 + i, 160))
 
 
 def main():
@@ -101,7 +132,7 @@ def main():
     ap.add_argument("--only", type=str, default="")
     ap.add_argument("--out", required=True)
     args = ap.parse_args()
-    n = len(CELLS) * SETS[args.set][1]
+    n = set_size(args.set)
     todo = [int(x) for x in args.only.split(",")] if args.only else list(range(n))[args.shard::args.nshards]
     with Pool(args.workers) as pool, open(args.out, "a") as fh:
         for k, row in enumerate(pool.imap_unordered(one, [(i, args.set) for i in todo]), 1):
