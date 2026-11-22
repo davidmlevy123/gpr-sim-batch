@@ -25,9 +25,14 @@ for s in range(3):
         METAL_CELLS += [(s, "tm62m", d)] * 3
     for d in ((0.02, 0.07), (0.07, 0.15)):
         METAL_CELLS += [(s, "ozm", d)] * 3
+TIN_CELLS = []
+for s in range(3):
+    for d in ((0.02, 0.10), (0.10, 0.20), (0.20, 0.30)):
+        TIN_CELLS += [(s, "steel_tin", d)] * 2
 SETS = {"train": (500000, 3), "test": (600000, 2), "test2": (700000, 2), "test3": (800000, 6),
-        "metal_train": (900000, 4), "test4": (1000000, 4)}
-LAYOUT = {"metal_train": [METAL_CELLS], "test4": [CELLS, METAL_CELLS]}
+        "metal_train": (900000, 4), "test4": (1000000, 4), "tin_train": (1100000, 8), "test5": (2000000, 70)}
+LAYOUT = {"metal_train": [METAL_CELLS], "test4": [CELLS, METAL_CELLS], "tin_train": [TIN_CELLS],
+          "test5": [CELLS + METAL_CELLS + TIN_CELLS]}
 
 
 def cell(set_name, i):
@@ -71,6 +76,8 @@ def make_object(kind, rng, depth):
     if kind == "empty_bottle":
         return scene.Ellipsoid("empty bottle", x, y, depth, 0.10, 0.035, 0.035, 1.05,
                                f0=rng.uniform(250, 600), q=4.0, gain=4.0, yaw=yaw)
+    if kind == "steel_tin":
+        return scene.Ellipsoid("crushed steel tin", x, y, depth, 0.05, 0.04, 0.025, 1e4, compliance=0.9, yaw=yaw)
     if kind == "can":
         return scene.Ellipsoid("crushed can", x, y, depth, 0.05, 0.035, 0.02, 1e4, compliance=0.9, yaw=yaw)
     return scene.Ellipsoid("wet root", x, y, depth, 0.10, 0.015, 0.015, 20.0, compliance=0.9, yaw=yaw)
