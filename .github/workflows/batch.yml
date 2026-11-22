@@ -24,20 +24,20 @@ jobs:
         with:
           python-version: "3.13"
       - run: pip install -q -r requirements.txt
-      - run: python -u gen.py --set ${{ inputs.set }} --workers 4 --shard ${{ fromJSON(inputs.offset) + matrix.shard }} --nshards ${{ inputs.nshards }} --out out.jsonl
+      - run: python -u gen.py --set ${{ inputs.set }} --workers 4 --shard $(( ${{ inputs.offset }} + ${{ matrix.shard }} )) --nshards ${{ inputs.nshards }} --out out.jsonl
       - name: encrypt
         if: always()
         env:
           DATA_KEY: ${{ secrets.DATA_KEY }}
         run: |
           if [ -f out.jsonl ]; then
-            openssl enc -aes-256-cbc -pbkdf2 -iter 200000 -salt -in out.jsonl -out out_${{ fromJSON(inputs.offset) + matrix.shard }}.enc -pass env:DATA_KEY
+            openssl enc -aes-256-cbc -pbkdf2 -iter 200000 -salt -in out.jsonl -out out_$(( ${{ inputs.offset }} + ${{ matrix.shard }} )).enc -pass env:DATA_KEY
             rm out.jsonl
           fi
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: ${{ inputs.set }}-${{ fromJSON(inputs.offset) + matrix.shard }}
+          name: ${{ inputs.set }}-${{ inputs.offset }}-${{ matrix.shard }}
           path: out_*.enc
           retention-days: 3
           if-no-files-found: warn
