@@ -19,7 +19,7 @@ for s in range(3):
     for k in ("rock", "water_bottle", "empty_bottle", "can", "root"):
         for d in ((0.02, 0.10), (0.10, 0.20), (0.20, 0.30)):
             CELLS += [(s, k, d)] * 2
-SETS = {"train": (500000, 3), "test": (600000, 2)}
+SETS = {"train": (500000, 3), "test": (600000, 2), "test2": (700000, 2)}
 ZF = np.arange(0.01, 0.40, 0.001)
 MINES = {"vs50", "pmn2", "tm62p3"}
 
